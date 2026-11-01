@@ -738,7 +738,7 @@ setInterval(()=>{if(user){pollSwiperCalls();pollSwiperMessageNotifications()}},2
 document.addEventListener("visibilitychange",()=>{const v=$("arenaVideo");if(document.visibilityState==="visible"&&running&&!paused&&v&&!v.classList.contains("hidden")&&v.src){v.muted=true;v.play().catch(()=>{if($("arenaVideoStatus"))$("arenaVideoStatus").textContent="Tap the game screen to resume background video playback."})}});
 showScreen("menu");
 const loadingEl=$("swiperLoading");setTimeout(()=>{loadingEl?.classList.add("fade-out");setTimeout(()=>loadingEl?.remove(),750)},5000);
-syncAccount().catch(e=>{msg("authMessage","Supabase connection failed: "+e.message,"error");loadBoard()});
+syncAccount().then(async()=>{const requestedLevel=new URLSearchParams(location.search).get("playLevel");if(requestedLevel&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedLevel)){const {data:targetLevel,error:targetError}=await db.from("swiper_levels").select("id,user_id,creator_name,title,difficulty,pattern,preview_image,video_background,created_at").eq("id",requestedLevel).maybeSingle();if(targetError){console.error("Community level lookup failed:",targetError);return}if(targetLevel)playCommunityLevel(targetLevel);}}).catch(e=>console.error("Direct community level launch failed:",e));syncAccount().catch(e=>{msg("authMessage","Supabase connection failed: "+e.message,"error");loadBoard()});
 })();
 };
 </script>
