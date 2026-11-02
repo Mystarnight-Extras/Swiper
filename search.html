@@ -41,10 +41,12 @@ pre{white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monosp
 <div id="status" role="status" aria-live="polite">Paste JSON copied from Supabase. Reports will be translated into readable results.</div>
 <section id="results" class="result hidden" aria-live="polite"></section>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (()=>{
 "use strict"
 const $=id=>document.getElementById(id)
+const db=window.supabase.createClient("https://upghyzhawctughyojwpo.supabase.co","sb_publishable_z70GOIzu3F_xdxdJiVa48A_SqvrA6-b")
 let records=[]
 function node(tag,cls,value){const n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);return n}
 function parseMany(source){
@@ -88,19 +90,36 @@ function addLine(card,label,value,uuid=false){
  line.textContent=label+": "+String(value)
  card.append(line)
 }
-function renderReport(row,index){
+function renderReport(row,index,data){
  const card=node("article","report")
- const target=typeName(row.target_type)
- card.append(node("div","report-title","A report was submitted about a "+target+"."))
- addLine(card,"Reported by",row.reporter_id,true)
- addLine(card,"Reported item",row.target_uuid,true)
+ const kind=String(row.target_type||"").toLowerCase()
+ const person=data.people.get(String(row.target_uuid||"").toLowerCase())
+ const reporter=data.people.get(String(row.reporter_id||"").toLowerCase())
+ const level=data.levels.get(String(row.target_uuid||"").toLowerCase())
+ const score=data.scores.get(String(row.target_score_id||""))
+ const who=reporter?(reporter.display_name||reporter.username):"Unknown player"
+ let headline="A report was submitted about a "+typeName(kind)+"."
+ if(kind==="player")headline=who+" reported player "+(person?(person.display_name||person.username):"Unknown player")+"."
+ if(kind==="world"||kind==="level")headline=who+" reported "+(level?level.title:"Unknown community level")+" by "+(level?(level.creator_name||data.people.get(String(level.user_id||"").toLowerCase())?.username||"Unknown creator"):"Unknown creator")+"."
+ if(kind==="score")headline=who+" reported a score"+(score?" by "+score.player_name:"")+"."
+ card.append(node("div","report-title",headline))
+ if(!reporter)addLine(card,"Reporter ID",row.reporter_id,true)
+ if(kind==="player"&&!person)addLine(card,"Player ID",row.target_uuid,true)
+ if(kind==="world"||kind==="level"){
+  if(!level)addLine(card,"Community level ID",row.target_uuid,true)
+  if(level){addLine(card,"Level difficulty",level.difficulty);addLine(card,"Level created",new Date(level.created_at).toLocaleString())}
+ }
+ if(kind==="score"){
+  if(score){addLine(card,"Player",score.player_name);addLine(card,"Score",score.score);addLine(card,"Mode",score.mode);if(score.difficulty)addLine(card,"Difficulty",score.difficulty);addLine(card,"Score submitted",new Date(score.created_at).toLocaleString())}
+  else addLine(card,"Score ID",row.target_score_id||row.target_uuid,true)
+ }
  addLine(card,"Reason",row.reason||"No reason provided")
  if(row.details)addLine(card,"Additional details",row.details)
  if(row.created_at){const d=new Date(row.created_at);addLine(card,"Reported at",Number.isNaN(d.getTime())?row.created_at:d.toLocaleString())}
  if(row.status)addLine(card,"Report status",row.status)
- if(row.target_score_id)addLine(card,"Related score ID",row.target_score_id,true)
+ if(row.target_score_id&&kind!=="score")addLine(card,"Related score ID",row.target_score_id,true)
  addLine(card,"Report ID",row.id,true)
- if(["world","level"].includes(String(row.target_type||"").toLowerCase())&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(row.target_uuid||""))){
+ if((kind==="world"||kind==="level")&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(row.target_uuid||""))){
   const play=document.createElement("a")
   play.className="play-level"
   play.href="./?playLevel="+encodeURIComponent(row.target_uuid)
@@ -109,7 +128,25 @@ function renderReport(row,index){
  }
  return card
 }
-function render(){
+async function lookupReports(reports){
+ const personIds=[...new Set(reports.flatMap(row=>[row.reporter_id,row.target_type==="player"?row.target_uuid:null]).filter(Boolean))]
+ const levelIds=[...new Set(reports.filter(row=>["world","level"].includes(String(row.target_type||"").toLowerCase())).map(row=>row.target_uuid).filter(Boolean))]
+ const scoreIds=[...new Set(reports.map(row=>row.target_score_id).filter(Boolean).map(String))]
+ const [peopleResult,levelResult,scoreResult]=await Promise.all([
+  personIds.length?db.from("swipe_public_directory").select("id,username,display_name").in("id",personIds):Promise.resolve({data:[],error:null}),
+  levelIds.length?db.from("swiper_levels").select("id,title,creator_name,user_id,difficulty,created_at").in("id",levelIds):Promise.resolve({data:[],error:null}),
+  scoreIds.length?db.from("swipe_scores").select("id,player_name,score,mode,difficulty,created_at,user_id").in("id",scoreIds):Promise.resolve({data:[],error:null})
+ ])
+ const people=new Map((peopleResult.data||[]).map(x=>[String(x.id).toLowerCase(),x]))
+ const levels=new Map((levelResult.data||[]).map(x=>[String(x.id).toLowerCase(),x]))
+ const creatorIds=[...new Set((levelResult.data||[]).map(x=>x.user_id).filter(Boolean))]
+ if(creatorIds.length){
+  const creators=await db.from("swipe_public_directory").select("id,username,display_name").in("id",creatorIds)
+  for(const x of creators.data||[])people.set(String(x.id).toLowerCase(),x)
+ }
+ return {people,levels,scores:new Map((scoreResult.data||[]).map(x=>[String(x.id),x])),errors:[peopleResult.error,levelResult.error,scoreResult.error].filter(Boolean)}
+}
+async function render(){
  const source=$("jsonInput").value.trim()
  const box=$("results")
  box.replaceChildren()
@@ -121,7 +158,11 @@ function render(){
  const reports=records.filter(row=>row&&typeof row==="object"&&!Array.isArray(row)&&("target_type" in row||"reporter_id" in row)&&("reason" in row||"target_uuid" in row))
  box.append(node("h2","",reports.length?"Found "+reports.length+" report"+(reports.length===1?"":"s"):"Found "+records.length+" JSON record"+(records.length===1?"":"s")))
  if(reports.length){
-  reports.forEach((row,index)=>box.append(renderReport(row,index)))
+  $("scanButton").disabled=true
+  $("status").textContent="Resolving players, levels and scores…"
+  try{const data=await lookupReports(reports);reports.forEach((row,index)=>box.append(renderReport(row,index,data)));if(data.errors.length)box.append(node("div","meta","Some public details could not be loaded from Supabase."))}
+  catch(error){box.append(node("div","meta","Lookup failed: "+error.message))}
+  finally{$("scanButton").disabled=false}
  }else{
   box.append(node("div","meta","JSON was read successfully, but these records do not look like Swiper reports. Raw records are shown below."))
   records.forEach((row,index)=>{
