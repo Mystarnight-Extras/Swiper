@@ -96,7 +96,7 @@ function renderReport(row,index){
  addLine(card,"Reported item",row.target_uuid,true)
  addLine(card,"Reason",row.reason||"No reason provided")
  if(row.details)addLine(card,"Additional details",row.details)
- if(row.created_at)addLine(card,"Reported at",row.created_at)
+ if(row.created_at){const d=new Date(row.created_at);addLine(card,"Reported at",Number.isNaN(d.getTime())?row.created_at:d.toLocaleString())}
  if(row.status)addLine(card,"Report status",row.status)
  if(row.target_score_id)addLine(card,"Related score ID",row.target_score_id,true)
  addLine(card,"Report ID",row.id,true)
