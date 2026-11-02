@@ -4,96 +4,109 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#10131b">
-<title>Swiper Search</title>
+<title>Swiper JSON Search</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:dark;background:#10131b;color:#f4f7ff;font-family:"Fredoka One",system-ui,sans-serif}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:#10131b;color:#f4f7ff;display:grid;place-items:start center;padding:clamp(18px,5vw,54px) 16px}
-main{width:min(100%,620px)}
-.search{display:flex;gap:9px}
-input,select,button{font:inherit;border-radius:12px;min-height:48px}
-input{min-width:0;flex:1;background:#171e2b;border:1px solid #354158;color:#fff;padding:0 14px;letter-spacing:.02em}
-button{border:0;padding:0 20px;background:#f4f7ff;color:#10131b;cursor:pointer}
-button:disabled{opacity:.55;cursor:wait}
-#status{min-height:26px;color:#9aa8bd;font-size:13px;padding:10px 2px}
-.result{margin-top:12px;padding:18px;background:#171e2b;border:1px solid #354158;border-radius:16px;overflow-wrap:anywhere}
-.result h2{font-size:19px;margin:0 0 10px}
-.meta{color:#aebbd0;font-size:13px;line-height:1.8}
-.uuid{font-size:12px;color:#8796ac;word-break:break-all;margin-top:9px}
-.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
-select{background:#101722;color:#fff;border:1px solid #354158;padding:0 10px}
-.danger{background:#ff647c;color:#1b0710}
-.play{background:#c9f4e8;color:#092019}
+body{margin:0;min-height:100vh;background:#10131b;color:#f4f7ff;padding:clamp(18px,5vw,54px) 16px}
+main{width:min(100%,760px);margin:0 auto}
+textarea{display:block;width:100%;min-height:230px;resize:vertical;background:#171e2b;border:1px solid #354158;border-radius:14px;color:#fff;padding:15px;font:13px/1.6 ui-monospace,monospace;outline:none}
+textarea:focus{border-color:#9eb8ed}
+button{font:inherit;border:0;border-radius:12px;min-height:46px;padding:0 18px;background:#f4f7ff;color:#10131b;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+#status{min-height:28px;color:#aebbd0;font-size:13px;padding:10px 2px}
+.result{margin-top:12px;padding:16px;background:#171e2b;border:1px solid #354158;border-radius:15px;overflow-wrap:anywhere}
+.result h2{font-size:18px;margin:0 0 9px}
+.meta{font-size:13px;color:#aebbd0;line-height:1.7}
+.item{padding:13px 0;border-top:1px solid #354158}
+.uuid{font:12px/1.5 ui-monospace,monospace;color:#c9f4e8;word-break:break-all}
+pre{white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace;color:#d5deed;margin:8px 0 0}
 .hidden{display:none!important}
-@media(max-width:430px){.search{flex-direction:column}.search button{width:100%}.actions>*{flex:1}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <main>
-<form class="search" id="searchForm">
-<input id="uuidInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="36" placeholder="Enter player or level UUID" aria-label="UUID" required>
-<button id="searchButton" type="submit">Search</button>
-</form>
-<div id="status" role="status" aria-live="polite"></div>
-<section id="result" class="result hidden" aria-live="polite"></section>
+<textarea id="jsonInput" spellcheck="false" autocomplete="off" aria-label="Supabase JSON" placeholder="Paste copied Supabase JSON here"></textarea>
+<div class="actions">
+<button id="scanButton" type="button">Find IDs and data</button>
+<button id="copyButton" type="button" disabled>Copy results as JSON</button>
+</div>
+<div id="status" role="status" aria-live="polite">Paste JSON copied from Supabase, then scan it. This tool only reads the text you paste.</div>
+<section id="results" class="result hidden" aria-live="polite"></section>
 </main>
 <script>
 (()=>{
-"use strict";
-const URL="https://upghyzhawctughyojwpo.supabase.co";
-const KEY="sb_publishable_z70GOIzu3F_xdxdJiVa48A_SqvrA6-b";
-const db=window.supabase.createClient(URL,KEY);
-const $=id=>document.getElementById(id);
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-let admin=false;let signedIn=false;
-const setStatus=t=>$("status").textContent=t;
-function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}
-function field(root,label,value){const line=el("div","meta");line.textContent=label+": "+(value??"—");root.append(line)}
-function showError(message){$("result").replaceChildren(el("h2","", "Search unavailable"),el("div","meta",message));$("result").classList.remove("hidden")}
-function showPlayer(p,scores){
- const box=$("result");box.replaceChildren();
- box.append(el("h2","",p.display_name||p.username||"Player"));
- field(box,"Username",p.username);field(box,"Display name",p.display_name);field(box,"Games played",p.games_played??0);field(box,"Rank",p.rank_name||"Unranked");field(box,"Verified",p.is_verified?"Yes":"No");field(box,"Warnings",p.is_warned?"Warned":"None");field(box,"Ban status",p.is_banned?"Banned":"Not banned");if(p.banned_until)field(box,"Ban expires",new Date(p.banned_until).toLocaleString());if(p.is_deleted)field(box,"Account","Deleted");
- box.append(el("div","uuid","UUID: "+p.id));
- if(scores.length){box.append(el("div","meta","Recent scores"));scores.forEach(s=>field(box,(s.mode||"Game")+" · "+(s.difficulty||"Normal"),s.score+" points"))}
- if(admin&&!p.is_deleted){
-  const actions=el("div","actions"),days=el("select");days.setAttribute("aria-label","Ban duration");
-  [["1","1 day"],["7","7 days"],["30","30 days"],["365","365 days"]].forEach(([v,t])=>{const o=el("option","",t);o.value=v;days.append(o)});
-  const ban=el("button","danger",p.is_banned?"Update ban":"Ban player");
-  ban.addEventListener("click",async()=>{if(!confirm("Ban "+(p.username||"this player")+" for "+days.value+" day(s)?"))return;ban.disabled=true;setStatus("Applying moderation…");try{const {data,error}=await db.rpc("swipe_moderate_player",{p_username:p.username,p_warned:false,p_banned:true,p_ban_days:Number(days.value)});if(error)throw error;setStatus("Ban applied.");await search(p.id)}catch(e){setStatus(e.message||"Moderation failed.");ban.disabled=false}});
-  const unban=el("button","", "Unban");unban.addEventListener("click",async()=>{if(!confirm("Remove the ban for "+(p.username||"this player")+"?"))return;unban.disabled=true;setStatus("Updating moderation…");try{const {error}=await db.rpc("swipe_moderate_player",{p_username:p.username,p_warned:false,p_banned:false,p_ban_days:0});if(error)throw error;setStatus("Ban removed.");await search(p.id)}catch(e){setStatus(e.message||"Unban failed.");unban.disabled=false}});
-  actions.append(days,ban);if(p.is_banned)actions.append(unban);box.append(actions)
+"use strict"
+const $=id=>document.getElementById(id)
+const uuidPattern=/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/ig
+let found=[]
+function node(tag,cls,value){const n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);return n}
+function scan(value){
+ const matches=new Map()
+ function visit(item,path,parent){
+  if(typeof item==="string"){
+   const ids=item.match(uuidPattern)||[]
+   ids.forEach(id=>{
+    const key=id.toLowerCase()
+    if(!matches.has(key))matches.set(key,{id:key,paths:[],records:[]})
+    const entry=matches.get(key)
+    if(!entry.paths.includes(path))entry.paths.push(path)
+    if(parent&&typeof parent==="object"&&!entry.records.includes(parent))entry.records.push(parent)
+   })
+   return
+  }
+  if(Array.isArray(item)){
+   item.forEach((child,index)=>visit(child,path+"["+index+"]",child&&typeof child==="object"?child:item))
+   return
+  }
+  if(item&&typeof item==="object"){
+   Object.entries(item).forEach(([key,child])=>visit(child,path?path+"."+key:key,item))
+  }
  }
- box.classList.remove("hidden");
+ visit(value,"$",value)
+ return [...matches.values()]
 }
-function showLevel(level){
- const box=$("result");box.replaceChildren(el("h2","",level.title||"Community level"));
- field(box,"Creator",level.creator_name);field(box,"Difficulty",(level.difficulty??"—")+"/10");field(box,"Segments",Array.isArray(level.pattern)?level.pattern.length:0);field(box,"Created",new Date(level.created_at).toLocaleString());box.append(el("div","uuid","UUID: "+level.id));
- const a=el("a","actions play","Play level");a.href="./?playLevel="+encodeURIComponent(level.id);a.style.display="inline-flex";a.style.alignItems="center";a.style.textDecoration="none";a.style.borderRadius="12px";a.style.padding="0 18px";a.style.minHeight="46px";box.append(a);box.classList.remove("hidden")
+function render(){
+ const input=$("jsonInput").value.trim()
+ $("results").replaceChildren()
+ $("results").classList.add("hidden")
+ $("copyButton").disabled=true
+ found=[]
+ if(!input){$("status").textContent="Paste Supabase JSON first.";return}
+ let parsed
+ try{parsed=JSON.parse(input)}catch(error){$("status").textContent="That is not valid JSON. Copy the JSON response from Supabase and paste it here.";return}
+ found=scan(parsed)
+ if(!found.length){$("status").textContent="Valid JSON. No UUIDs were found.";return}
+ const box=$("results")
+ box.append(node("h2","","Found "+found.length+" unique UUID"+(found.length===1?"":"s")))
+ box.append(node("div","meta","Each result includes the JSON location and the record containing the ID."))
+ found.forEach((entry,index)=>{
+  const card=node("div","item")
+  card.append(node("div","uuid",entry.id))
+  entry.paths.forEach(path=>card.append(node("div","meta","Found at "+path)))
+  const record=entry.records.find(x=>x&&typeof x==="object")
+  if(record){
+   const pre=node("pre","",JSON.stringify(record,null,2))
+   card.append(pre)
+  }
+  box.append(card)
+ })
+ box.classList.remove("hidden")
+ $("status").textContent="Scan complete. "+found.length+" UUIDs found."
+ $("copyButton").disabled=false
 }
-async function search(id){
- $("result").classList.add("hidden");$("result").replaceChildren();$("searchButton").disabled=true;setStatus("Searching…");
- try{
-  const {data:p,error:pe}=await db.from("swipe_profiles").select("id,username,display_name,games_played,rank_name,is_verified,is_warned,is_banned,ban_days,banned_until,is_deleted").eq("id",id).maybeSingle();
-  if(pe)throw pe;
-  if(p){let scores=[];const {data:sc,error:se}=await db.from("swipe_scores").select("score,mode,difficulty,created_at").eq("user_id",id).order("created_at",{ascending:false}).limit(5);if(!se)scores=sc||[];showPlayer(p,scores);setStatus("Player found.");return}
-  const {data:l,error:le}=await db.from("swiper_levels").select("id,user_id,creator_name,title,difficulty,pattern,created_at").eq("id",id).maybeSingle();
-  if(le)throw le;
-  if(l){showLevel(l);setStatus("Community level found.");return}
-  setStatus("No player or community level matched that UUID.");
- }catch(e){showError(e.message||"Search failed.");setStatus("Search failed.")}
- finally{$("searchButton").disabled=false}
-}
-$("searchForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("uuidInput").value.trim();if(!UUID.test(id)){setStatus("Enter a valid UUID.");$("result").classList.add("hidden");return}await search(id)});
-(async()=>{
- try{const {data:{user},error}=await db.auth.getUser();if(error)throw error;signedIn=!!user;admin=(user?.email||"").toLowerCase()==="mystarsnight@gmail.com";if(!user)setStatus("Sign in to any Swiper account to search players. Community levels are public.");else setStatus(admin?"Ready. Administrator moderation is enabled.":"Ready. Search only; moderation controls are administrator-only.");$("searchButton").disabled=!signedIn;$("uuidInput").disabled=!signedIn;
- }catch(e){setStatus("Could not verify your account. Sign in to Swiper first.");$("searchButton").disabled=true;$("uuidInput").disabled=true}
-})();
-})();
+$("scanButton").addEventListener("click",render)
+$("copyButton").addEventListener("click",async()=>{
+ if(!found.length)return
+ const output=found.map(entry=>({id:entry.id,paths:entry.paths,records:entry.records}))
+ try{await navigator.clipboard.writeText(JSON.stringify(output,null,2));$("status").textContent="Found IDs and matching data copied as JSON."}
+ catch(error){$("status").textContent="Clipboard access was blocked. Select and copy the results manually."}
+})
+})()
 </script>
 </body>
 </html>
