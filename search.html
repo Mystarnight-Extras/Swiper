@@ -28,7 +28,7 @@ button:disabled{opacity:.5;cursor:wait}
 .uuid{font:12px/1.6 ui-monospace,monospace;color:#c9f4e8;word-break:break-all}
 .pill{display:inline-block;border:1px solid #52617a;border-radius:20px;padding:2px 9px;font-size:11px;color:#c9d6eb;margin:3px 4px 3px 0}
 pre{white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace;color:#d5deed;margin:8px 0 0}
-.hidden{display:none!important}
+.play-level{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;min-height:42px;padding:0 15px;border-radius:11px;background:#c9f4e8;color:#092019;text-decoration:none;font-size:13px}.hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -100,6 +100,13 @@ function renderReport(row,index){
  if(row.status)addLine(card,"Report status",row.status)
  if(row.target_score_id)addLine(card,"Related score ID",row.target_score_id,true)
  addLine(card,"Report ID",row.id,true)
+ if(["world","level"].includes(String(row.target_type||"").toLowerCase())&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(row.target_uuid||""))){
+  const play=document.createElement("a")
+  play.className="play-level"
+  play.href="./?playLevel="+encodeURIComponent(row.target_uuid)
+  play.textContent="Open and play community level"
+  card.append(play)
+ }
  return card
 }
 function render(){
