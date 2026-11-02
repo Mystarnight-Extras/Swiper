@@ -22,89 +22,117 @@ button:disabled{opacity:.5;cursor:wait}
 .result{margin-top:12px;padding:16px;background:#171e2b;border:1px solid #354158;border-radius:15px;overflow-wrap:anywhere}
 .result h2{font-size:18px;margin:0 0 9px}
 .meta{font-size:13px;color:#aebbd0;line-height:1.7}
-.item{padding:13px 0;border-top:1px solid #354158}
-.uuid{font:12px/1.5 ui-monospace,monospace;color:#c9f4e8;word-break:break-all}
+.report{padding:15px 0;border-top:1px solid #354158}
+.report-title{font-size:16px;line-height:1.5;margin-bottom:8px}
+.report-line{font-size:13px;color:#b9c5d8;line-height:1.8}
+.uuid{font:12px/1.6 ui-monospace,monospace;color:#c9f4e8;word-break:break-all}
+.pill{display:inline-block;border:1px solid #52617a;border-radius:20px;padding:2px 9px;font-size:11px;color:#c9d6eb;margin:3px 4px 3px 0}
 pre{white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace;color:#d5deed;margin:8px 0 0}
 .hidden{display:none!important}
 </style>
 </head>
 <body>
 <main>
-<textarea id="jsonInput" spellcheck="false" autocomplete="off" aria-label="Supabase JSON" placeholder="Paste copied Supabase JSON here"></textarea>
+<textarea id="jsonInput" spellcheck="false" autocomplete="off" aria-label="Supabase JSON" placeholder="Paste Supabase JSON here"></textarea>
 <div class="actions">
-<button id="scanButton" type="button">Find IDs and data</button>
+<button id="scanButton" type="button">Search JSON</button>
 <button id="copyButton" type="button" disabled>Copy results as JSON</button>
 </div>
-<div id="status" role="status" aria-live="polite">Paste JSON copied from Supabase, then scan it. This tool only reads the text you paste.</div>
+<div id="status" role="status" aria-live="polite">Paste JSON copied from Supabase. Reports will be translated into readable results.</div>
 <section id="results" class="result hidden" aria-live="polite"></section>
 </main>
 <script>
 (()=>{
 "use strict"
 const $=id=>document.getElementById(id)
-const uuidPattern=/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/ig
-let found=[]
+let records=[]
 function node(tag,cls,value){const n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);return n}
-function scan(value){
- const matches=new Map()
- function visit(item,path,parent){
-  if(typeof item==="string"){
-   const ids=item.match(uuidPattern)||[]
-   ids.forEach(id=>{
-    const key=id.toLowerCase()
-    if(!matches.has(key))matches.set(key,{id:key,paths:[],records:[]})
-    const entry=matches.get(key)
-    if(!entry.paths.includes(path))entry.paths.push(path)
-    if(parent&&typeof parent==="object"&&!entry.records.includes(parent))entry.records.push(parent)
-   })
-   return
+function parseMany(source){
+ const values=[]
+ let start=-1,depth=0,inString=false,escaped=false
+ for(let i=0;i<source.length;i++){
+  const c=source[i]
+  if(start<0){
+   if(c==="{"||c==="["){start=i;depth=1;inString=false;escaped=false}
+   else if(!/\s|,/.test(c))throw new Error("Unexpected text at character "+(i+1))
+   continue
   }
-  if(Array.isArray(item)){
-   item.forEach((child,index)=>visit(child,path+"["+index+"]",child&&typeof child==="object"?child:item))
-   return
+  if(inString){
+   if(escaped)escaped=false
+   else if(c==="\\")escaped=true
+   else if(c==='"')inString=false
+   continue
   }
-  if(item&&typeof item==="object"){
-   Object.entries(item).forEach(([key,child])=>visit(child,path?path+"."+key:key,item))
+  if(c==='"'){inString=true;continue}
+  if(c==="{"||c==="[")depth++
+  if(c==="}"||c==="]"){
+   depth--
+   if(depth===0){
+    values.push(JSON.parse(source.slice(start,i+1)))
+    start=-1
+   }
+   if(depth<0)throw new Error("JSON brackets do not match")
   }
  }
- visit(value,"$",value)
- return [...matches.values()]
+ if(start>=0)throw new Error("JSON looks incomplete. Copy the complete Supabase result and try again.")
+ if(!values.length)throw new Error("No JSON object or array found.")
+ return values.flatMap(value=>Array.isArray(value)?value:[value])
+}
+function typeName(type){
+ const names={world:"community level",level:"community level",game:"game",score:"game score",player:"player",profile:"player",message:"message"}
+ return names[String(type||"").toLowerCase()]||String(type||"item").replace(/_/g," ")
+}
+function addLine(card,label,value,uuid=false){
+ if(value===null||value===undefined||value==="")return
+ const line=node("div",uuid?"uuid":"report-line")
+ line.textContent=label+": "+String(value)
+ card.append(line)
+}
+function renderReport(row,index){
+ const card=node("article","report")
+ const target=typeName(row.target_type)
+ card.append(node("div","report-title","A report was submitted about a "+target+"."))
+ addLine(card,"Reported by",row.reporter_id,true)
+ addLine(card,"Reported item",row.target_uuid,true)
+ addLine(card,"Reason",row.reason||"No reason provided")
+ if(row.details)addLine(card,"Additional details",row.details)
+ if(row.created_at)addLine(card,"Reported at",row.created_at)
+ if(row.status)addLine(card,"Report status",row.status)
+ if(row.target_score_id)addLine(card,"Related score ID",row.target_score_id,true)
+ addLine(card,"Report ID",row.id,true)
+ return card
 }
 function render(){
- const input=$("jsonInput").value.trim()
- $("results").replaceChildren()
- $("results").classList.add("hidden")
- $("copyButton").disabled=true
- found=[]
- if(!input){$("status").textContent="Paste Supabase JSON first.";return}
- let parsed
- try{parsed=JSON.parse(input)}catch(error){$("status").textContent="That is not valid JSON. Copy the JSON response from Supabase and paste it here.";return}
- found=scan(parsed)
- if(!found.length){$("status").textContent="Valid JSON. No UUIDs were found.";return}
+ const source=$("jsonInput").value.trim()
  const box=$("results")
- box.append(node("h2","","Found "+found.length+" unique UUID"+(found.length===1?"":"s")))
- box.append(node("div","meta","Each result includes the JSON location and the record containing the ID."))
- found.forEach((entry,index)=>{
-  const card=node("div","item")
-  card.append(node("div","uuid",entry.id))
-  entry.paths.forEach(path=>card.append(node("div","meta","Found at "+path)))
-  const record=entry.records.find(x=>x&&typeof x==="object")
-  if(record){
-   const pre=node("pre","",JSON.stringify(record,null,2))
-   card.append(pre)
-  }
-  box.append(card)
- })
+ box.replaceChildren()
+ box.classList.add("hidden")
+ $("copyButton").disabled=true
+ records=[]
+ if(!source){$("status").textContent="Paste Supabase JSON first.";return}
+ try{records=parseMany(source)}catch(error){$("status").textContent=error.message;return}
+ const reports=records.filter(row=>row&&typeof row==="object"&&!Array.isArray(row)&&("target_type" in row||"reporter_id" in row)&&("reason" in row||"target_uuid" in row))
+ box.append(node("h2","",reports.length?"Found "+reports.length+" report"+(reports.length===1?"":"s"):"Found "+records.length+" JSON record"+(records.length===1?"":"s")))
+ if(reports.length){
+  reports.forEach((row,index)=>box.append(renderReport(row,index)))
+ }else{
+  box.append(node("div","meta","JSON was read successfully, but these records do not look like Swiper reports. Raw records are shown below."))
+  records.forEach((row,index)=>{
+   const section=node("div","report")
+   section.append(node("div","report-title","Record "+(index+1)))
+   section.append(node("pre","",JSON.stringify(row,null,2)))
+   box.append(section)
+  })
+ }
  box.classList.remove("hidden")
- $("status").textContent="Scan complete. "+found.length+" UUIDs found."
+ $("status").textContent="Finished. Read "+records.length+" record"+(records.length===1?"":"s")+" and identified "+reports.length+" report"+(reports.length===1?"":"s")+"."
  $("copyButton").disabled=false
 }
 $("scanButton").addEventListener("click",render)
 $("copyButton").addEventListener("click",async()=>{
- if(!found.length)return
- const output=found.map(entry=>({id:entry.id,paths:entry.paths,records:entry.records}))
- try{await navigator.clipboard.writeText(JSON.stringify(output,null,2));$("status").textContent="Found IDs and matching data copied as JSON."}
- catch(error){$("status").textContent="Clipboard access was blocked. Select and copy the results manually."}
+ if(!records.length)return
+ try{await navigator.clipboard.writeText(JSON.stringify(records,null,2));$("status").textContent="Parsed JSON records copied."}
+ catch(error){$("status").textContent="Clipboard access was blocked. You can still select and copy the original JSON."}
 })
 })()
 </script>
