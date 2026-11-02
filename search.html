@@ -49,7 +49,7 @@ const KEY="sb_publishable_z70GOIzu3F_xdxdJiVa48A_SqvrA6-b";
 const db=window.supabase.createClient(URL,KEY);
 const $=id=>document.getElementById(id);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-let admin=false;
+let admin=false;let signedIn=false;
 const setStatus=t=>$("status").textContent=t;
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}
 function field(root,label,value){const line=el("div","meta");line.textContent=label+": "+(value??"—");root.append(line)}
@@ -90,7 +90,7 @@ async function search(id){
 }
 $("searchForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("uuidInput").value.trim();if(!UUID.test(id)){setStatus("Enter a valid UUID.");$("result").classList.add("hidden");return}await search(id)});
 (async()=>{
- try{const {data:{user},error}=await db.auth.getUser();if(error)throw error;admin=(user?.email||"").toLowerCase()==="mystarsnight@gmail.com";if(!user)setStatus("Sign in to Swiper in this browser first.");else if(!admin)setStatus("Search access is restricted to the Swiper administrator.");else setStatus("Ready.");$("searchButton").disabled=!admin;$("uuidInput").disabled=!admin;
+ try{const {data:{user},error}=await db.auth.getUser();if(error)throw error;signedIn=!!user;admin=(user?.email||"").toLowerCase()==="mystarsnight@gmail.com";if(!user)setStatus("Sign in to any Swiper account to search players. Community levels are public.");else setStatus(admin?"Ready. Administrator moderation is enabled.":"Ready. Search only; moderation controls are administrator-only.");$("searchButton").disabled=!signedIn;$("uuidInput").disabled=!signedIn;
  }catch(e){setStatus("Could not verify your account. Sign in to Swiper first.");$("searchButton").disabled=true;$("uuidInput").disabled=true}
 })();
 })();
