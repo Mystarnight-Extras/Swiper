@@ -97,10 +97,10 @@ function renderReport(row,index,data){
  const reporter=data.people.get(String(row.reporter_id||"").toLowerCase())
  const level=data.levels.get(String(row.target_uuid||"").toLowerCase())
  const score=data.scores.get(String(row.target_score_id||""))
- const who=reporter?(reporter.display_name||reporter.username):"Unknown player"
+ const who=reporter?(reporter.username||reporter.display_name):"Unknown player"
  let headline="A report was submitted about a "+typeName(kind)+"."
- if(kind==="player")headline=who+" reported player "+(person?(person.display_name||person.username):"Unknown player")+"."
- if(kind==="world"||kind==="level")headline=who+" reported "+(level?level.title:"Unknown community level")+" by "+(level?(level.creator_name||data.people.get(String(level.user_id||"").toLowerCase())?.username||"Unknown creator"):"Unknown creator")+"."
+ if(kind==="player")headline=who+" reported player "+(person?(person.username||person.display_name):"Unknown player")+"."
+ if(kind==="world"||kind==="level")headline=who+" reported "+(level?level.title:"Unknown community level")+" by "+(level?(data.people.get(String(level.user_id||"").toLowerCase())?.username||level.creator_name||"Unknown creator"):"Unknown creator")+"."
  if(kind==="score")headline=who+" reported a score"+(score?" by "+score.player_name:"")+"."
  card.append(node("div","report-title",headline))
  if(!reporter)addLine(card,"Reporter ID",row.reporter_id,true)
