@@ -813,4 +813,22 @@ syncAccount().then(async()=>{const requestedLevel=new URLSearchParams(location.s
 /* Hide the site footer only during active gameplay. */
 body:has(.layout.view-game) .site-footer{display:none!important}
 </style>
+
+<style>
+/* Optional owner-credit page: open index.html?whoistheowner */
+body.owner-credit> :not(#ownerCreditScreen){display:none!important}
+#ownerCreditScreen{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:24px;background:#10131b;color:#f4f7ff;text-align:center;font-family:"Fredoka",sans-serif}
+#ownerCreditScreen[hidden]{display:none!important}
+#ownerCreditScreen p{margin:0;font-size:clamp(28px,7vw,64px);font-weight:700;letter-spacing:.01em}
+</style>
+<div id="ownerCreditScreen" hidden><p>Blake S Made This Game</p></div>
+<script>
+(function(){
+  if(!new URLSearchParams(window.location.search).has("whoistheowner")) return;
+  document.body.classList.add("owner-credit");
+  const screen=document.getElementById("ownerCreditScreen");
+  if(screen) screen.hidden=false;
+})();
+</script>
+
 </body></html>
