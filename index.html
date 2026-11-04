@@ -810,10 +810,12 @@ syncAccount().then(async()=>{const requestedLevel=new URLSearchParams(location.s
 <style>
 .site-footer{position:relative;z-index:1;width:min(1050px,calc(100% - 28px));margin:26px auto 0;padding:24px 0 calc(24px + env(safe-area-inset-bottom));border-top:1px solid #2b3547;color:#aab8ca;font:13px/1.65 "Fredoka",sans-serif}.site-footer-inner{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:18px;align-items:start}.site-footer strong{color:#f4f7ff;letter-spacing:2px;font-size:16px}.site-footer p{margin:7px 0}.site-footer nav{display:grid;gap:7px}.site-footer a{color:#70eee2;text-decoration:none}.site-footer a:hover,.site-footer a:focus{text-decoration:underline}@media(max-width:620px){.site-footer-inner{grid-template-columns:1fr 1fr}.site-footer-inner>div{grid-column:1/-1}}
 
-/* Hide the footer everywhere by default; show it only on the actual homepage. */
-.site-footer{display:none!important;visibility:hidden!important;pointer-events:none!important}
-.site-footer[hidden]{display:none!important;visibility:hidden!important;pointer-events:none!important}
-body.screen-menu #mainMenu #swiperSiteFooter:not([hidden]){display:block!important;visibility:visible!important;pointer-events:auto!important}body:not(.screen-menu) #swiperSiteFooter{display:none!important;visibility:hidden!important;pointer-events:none!important}
+/* The information footer belongs to the homepage only. */
+#swiperSiteFooter{display:none!important;visibility:hidden!important;pointer-events:none!important}
+#swiperSiteFooter[hidden]{display:none!important}
+body.screen-menu .home-info #swiperSiteFooter:not([hidden]){display:block!important;visibility:visible!important;pointer-events:auto!important}
+body:not(.screen-menu) .home-info{display:none!important}
+body.screen-menu .home-info{display:block!important}
 </style>
 
 <style>
@@ -837,15 +839,20 @@ body.owner-credit> :not(#ownerCreditScreen){display:none!important}
 (function(){
   const footer=document.getElementById("swiperSiteFooter");
   const home=document.getElementById("mainMenu");
-  if(!footer||!home)return;
-  // Keep the site footer inside the homepage menu itself. It cannot appear
-  // above Friends, Account, Lobbies, or any other app screen.
-  if(!home.contains(footer))home.appendChild(footer);
-  const sync=()=>{const onHome=document.body.classList.contains("screen-menu")&&!home.hidden;footer.hidden=!onHome;footer.style.display=onHome?"block":"none";};
+  const info=document.querySelector(".home-info");
+  if(!footer||!home||!info)return;
+  // Put the footer at the very end of homepage information, not inside the
+  // game-mode menu or the shared app layout used by Friends and other screens.
+  if(!info.contains(footer))info.appendChild(footer);
+  const sync=()=>{
+    const onHome=document.body.classList.contains("screen-menu")&&!home.hidden;
+    footer.hidden=!onHome;
+    info.hidden=!onHome;
+  };
   sync();
   const observer=new MutationObserver(sync);
   observer.observe(document.body,{attributes:true,attributeFilter:["class"]});
-  observer.observe(home,{attributes:true,attributeFilter:["class","hidden"]});
+  observer.observe(home,{attributes:true,attributeFilter:["hidden"]});
 })();
 </script>
 </body></html>
