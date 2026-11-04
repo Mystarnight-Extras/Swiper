@@ -33,12 +33,12 @@ pre{white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monosp
 </head>
 <body>
 <main>
-<textarea id="jsonInput" spellcheck="false" autocomplete="off" aria-label="Supabase JSON" placeholder="Paste Supabase JSON here"></textarea>
+<textarea id="jsonInput" spellcheck="false" autocomplete="off" aria-label="copied JSON" placeholder="Paste copied JSON here"></textarea>
 <div class="actions">
 <button id="scanButton" type="button">Search JSON</button>
 <button id="copyButton" type="button" disabled>Copy results as JSON</button>
 </div>
-<div id="status" role="status" aria-live="polite">Paste JSON copied from Supabase. Reports will be translated into readable results.</div>
+<div id="status" role="status" aria-live="polite">Paste copied JSON here. Reports will be translated into readable results.</div>
 <section id="results" class="result hidden" aria-live="polite"></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -76,7 +76,7 @@ function parseMany(source){
    if(depth<0)throw new Error("JSON brackets do not match")
   }
  }
- if(start>=0)throw new Error("JSON looks incomplete. Copy the complete Supabase result and try again.")
+ if(start>=0)throw new Error("JSON looks incomplete. Copy the complete result and try again.")
  if(!values.length)throw new Error("No JSON object or array found.")
  return values.flatMap(value=>Array.isArray(value)?value:[value])
 }
@@ -153,7 +153,7 @@ async function render(){
  box.classList.add("hidden")
  $("copyButton").disabled=true
  records=[]
- if(!source){$("status").textContent="Paste Supabase JSON first.";return}
+ if(!source){$("status").textContent="Paste JSON first.";return}
  try{records=parseMany(source)}catch(error){$("status").textContent=error.message;return}
  const reports=records.filter(row=>row&&typeof row==="object"&&!Array.isArray(row)&&("target_type" in row||"reporter_id" in row)&&("reason" in row||"target_uuid" in row))
  box.append(node("h2","",reports.length?"Found "+reports.length+" report"+(reports.length===1?"":"s"):"Found "+records.length+" JSON record"+(records.length===1?"":"s")))
