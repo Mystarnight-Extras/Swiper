@@ -160,7 +160,7 @@ async function render(){
  if(reports.length){
   $("scanButton").disabled=true
   $("status").textContent="Resolving players, levels and scores…"
-  try{const data=await lookupReports(reports);reports.forEach((row,index)=>box.append(renderReport(row,index,data)));if(data.errors.length)box.append(node("div","meta","Some public details could not be loaded from Supabase."))}
+  try{const data=await lookupReports(reports);reports.forEach((row,index)=>box.append(renderReport(row,index,data)));if(data.errors.length)box.append(node("div","meta","Some public details could not be loaded. Other available information is still shown."))}
   catch(error){box.append(node("div","meta","Lookup failed: "+error.message))}
   finally{$("scanButton").disabled=false}
  }else{
