@@ -809,5 +809,8 @@ syncAccount().then(async()=>{const requestedLevel=new URLSearchParams(location.s
 <footer class="site-footer" aria-label="Swiper information"><div class="site-footer-inner"><div><strong>SWIPER</strong></div><nav aria-label="Game information"><a href="about.html">About</a><a href="how-to-play.html">How to Play</a><a href="gameplay-guide.html">Gameplay Guide</a><a href="community-guidelines.html">Community Guidelines</a><a href="contact.html">Contact</a></nav><nav aria-label="Policies"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms of Use</a></nav></div></footer>
 <style>
 .site-footer{position:relative;z-index:1;width:min(1050px,calc(100% - 28px));margin:26px auto 0;padding:24px 0 calc(24px + env(safe-area-inset-bottom));border-top:1px solid #2b3547;color:#aab8ca;font:13px/1.65 "Fredoka",sans-serif}.site-footer-inner{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:18px;align-items:start}.site-footer strong{color:#f4f7ff;letter-spacing:2px;font-size:16px}.site-footer p{margin:7px 0}.site-footer nav{display:grid;gap:7px}.site-footer a{color:#70eee2;text-decoration:none}.site-footer a:hover,.site-footer a:focus{text-decoration:underline}@media(max-width:620px){.site-footer-inner{grid-template-columns:1fr 1fr}.site-footer-inner>div{grid-column:1/-1}}
+
+/* Hide the site footer only during active gameplay. */
+body:has(.layout.view-game) .site-footer{display:none!important}
 </style>
 </body></html>
