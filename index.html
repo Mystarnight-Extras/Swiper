@@ -813,7 +813,7 @@ syncAccount().then(async()=>{const requestedLevel=new URLSearchParams(location.s
 /* Hide the footer everywhere by default; show it only on the actual homepage. */
 .site-footer{display:none!important;visibility:hidden!important;pointer-events:none!important}
 .site-footer[hidden]{display:none!important;visibility:hidden!important;pointer-events:none!important}
-body.screen-menu .site-footer:not([hidden]){display:block!important;visibility:visible!important;pointer-events:auto!important}
+body.screen-menu #mainMenu #swiperSiteFooter:not([hidden]){display:block!important;visibility:visible!important;pointer-events:auto!important}body:not(.screen-menu) #swiperSiteFooter{display:none!important;visibility:hidden!important;pointer-events:none!important}
 </style>
 
 <style>
@@ -833,5 +833,19 @@ body.owner-credit> :not(#ownerCreditScreen){display:none!important}
 })();
 </script>
 
-<script>(function(){const f=document.getElementById("swiperSiteFooter");if(f)f.hidden=!document.body.classList.contains("screen-menu");})();</script>
+<script>
+(function(){
+  const footer=document.getElementById("swiperSiteFooter");
+  const home=document.getElementById("mainMenu");
+  if(!footer||!home)return;
+  // Keep the site footer inside the homepage menu itself. It cannot appear
+  // above Friends, Account, Lobbies, or any other app screen.
+  if(!home.contains(footer))home.appendChild(footer);
+  const sync=()=>{const onHome=document.body.classList.contains("screen-menu")&&!home.hidden;footer.hidden=!onHome;footer.style.display=onHome?"block":"none";};
+  sync();
+  const observer=new MutationObserver(sync);
+  observer.observe(document.body,{attributes:true,attributeFilter:["class"]});
+  observer.observe(home,{attributes:true,attributeFilter:["class","hidden"]});
+})();
+</script>
 </body></html>
