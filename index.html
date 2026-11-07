@@ -467,6 +467,19 @@ body.cursed-practice .arena:before{content:"";position:absolute;inset:0;pointer-
 <script>
 window.__bootSwiper = function(){
 (()=> {
+// Some browsers, private tabs, embedded views, and restricted contexts throw
+// SecurityError when localStorage is accessed. Keep the game bootable with a
+// small in-memory fallback while preserving normal persistent storage when available.
+const swiperSafeStorage=(()=>{
+  let nativeStorage=null;
+  const memory=new Map();
+  try{nativeStorage=window.localStorage;const probe="__swiper_storage_probe__";nativeStorage.setItem(probe,"1");nativeStorage.removeItem(probe)}catch(e){nativeStorage=null}
+  return {
+    getItem(key){try{if(nativeStorage){const value=nativeStorage.getItem(key);if(value!==null)return value}}catch(e){nativeStorage=null}return memory.has(String(key))?memory.get(String(key)):null},
+    setItem(key,value){key=String(key);value=String(value);memory.set(key,value);try{nativeStorage?.setItem(key,value)}catch(e){nativeStorage=null}},
+    removeItem(key){key=String(key);memory.delete(key);try{nativeStorage?.removeItem(key)}catch(e){nativeStorage=null}}
+  };
+})();
 const SUPABASE_URL="https://upghyzhawctughyojwpo.supabase.co";
 const SUPABASE_KEY="sb_publishable_z70GOIzu3F_xdxdJiVa48A_SqvrA6-b";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
