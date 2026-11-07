@@ -794,8 +794,30 @@ syncAccount().then(async()=>{const requestedLevel=new URLSearchParams(location.s
     const codeLine=document.createElement("p");codeLine.textContent="Error code: "+code;codeLine.style.cssText="font-weight:800;background:#ffffff20;border:1px solid #ffffff55;border-radius:8px;padding:10px";
     const detailLine=document.createElement("p");detailLine.textContent=String(detail||"No additional details were provided.").slice(0,500);detailLine.style.cssText="overflow-wrap:anywhere;color:#ffe3e8";
     const instruction=document.createElement("p");instruction.textContent="Need help? Contact mystarsnight@gmail.com and include the error code and message above.";
-    const retry=document.createElement("button");retry.textContent="Try again";retry.style.cssText="margin-top:12px;padding:12px 20px;border:0;border-radius:9px;background:white;color:#8f1026;font-weight:800";retry.onclick=()=>location.reload();
-    box.append(brand,heading,codeLine,detailLine,instruction,retry);l.append(box);
+    const retry=document.createElement("button");retry.textContent="Try again";retry.style.cssText="margin:12px 8px 0;padding:12px 20px;border:0;border-radius:9px;background:#ffffff;color:#8f1026;font-weight:800";retry.onclick=()=>location.reload();
+    const blankLaunch=document.createElement("button");blankLaunch.textContent="Open Swiper in about:blank";blankLaunch.style.cssText="margin:12px 8px 0;padding:12px 20px;border:1px solid #ffffff88;border-radius:9px;background:#17202d;color:white;font-weight:800";
+    blankLaunch.onclick=async()=>{
+      // Open synchronously from the click so popup blockers allow the new tab.
+      const tab=window.open("about:blank","_blank");
+      if(!tab){detailLine.textContent="Your browser blocked the new tab. Allow pop-ups for this site, then try again.";return}
+      blankLaunch.disabled=true;blankLaunch.textContent="Loading Swiper…";
+      try{
+        const response=await fetch(location.href,{cache:"no-store",credentials:"same-origin"});
+        if(!response.ok)throw new Error("Could not retrieve the game source (HTTP "+response.status+").");
+        let source=await response.text();
+        if(!/<html[\\s>]/i.test(source)||!/<script[\\s>]/i.test(source))throw new Error("The server did not return the Swiper HTML source.");
+        const base=new URL(".",location.href).href;
+        const baseTag='<base href="'+base.replace(/&/g,"&amp;").replace(/"/g,"&quot;")+'">';
+        if(/<head(?:\\s[^>]*)?>/i.test(source))source=source.replace(/<head((?:\\s[^>]*)?)>/i,"<head$1>"+baseTag);
+        else source=baseTag+source;
+        tab.document.open();tab.document.write(source);tab.document.close();
+      }catch(error){
+        const message=String(error&&error.message||error);
+        tab.document.open();tab.document.write("<!doctype html><meta charset=utf-8><title>Swiper could not load</title><body style='margin:0;background:#10131b;color:#fff;font:16px system-ui;padding:28px'><h1>Swiper could not load</h1><p>"+message.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+"</p><p>Return to the original tab and check that the site can load its HTML source.</p></body>");tab.document.close();
+        blankLaunch.disabled=false;blankLaunch.textContent="Open Swiper in about:blank";
+      }
+    };
+    box.append(brand,heading,codeLine,detailLine,instruction,blankLaunch,retry);l.append(box);
   }
   window.addEventListener("error",function(e){if(!window.__swiperBooted)return;showStartupError("SWP-JS-001","A JavaScript error occurred",(e.message||"Unknown script error")+" (line "+(e.lineno||"?")+")")});
   window.addEventListener("unhandledrejection",function(e){if(!window.__swiperBooted)return;const r=e.reason;showStartupError("SWP-ASYNC-001","An app task failed",r&&r.message?r.message:String(r||"Unknown rejected task"))});
