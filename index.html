@@ -795,9 +795,7 @@ syncAccount().then(async()=>{const requestedLevel=new URLSearchParams(location.s
     const detailLine=document.createElement("p");detailLine.textContent=String(detail||"No additional details were provided.").slice(0,500);detailLine.style.cssText="overflow-wrap:anywhere;color:#ffe3e8";
     const instruction=document.createElement("p");instruction.textContent="Need help? Contact mystarsnight@gmail.com and include the error code and message above.";
     const retry=document.createElement("button");retry.textContent="Try again";retry.style.cssText="margin:12px 8px 0;padding:12px 20px;border:0;border-radius:9px;background:#ffffff;color:#8f1026;font-weight:800";retry.onclick=()=>location.reload();
-    const blankLaunch=document.createElement("button");blankLaunch.textContent="Open Swiper in about:blank";blankLaunch.style.cssText="margin:12px 8px 0;padding:12px 20px;border:1px solid #ffffff88;border-radius:9px;background:#17202d;color:white;font-weight:800";
-    blankLaunch.onclick=()=>launchSwiperAboutBlank(blankLaunch,detailLine);
-    box.append(brand,heading,codeLine,detailLine,instruction,blankLaunch,retry);l.append(box);
+    box.append(brand,heading,codeLine,detailLine,instruction,retry);l.append(box);
   }
   window.addEventListener("error",function(e){if(!window.__swiperBooted)return;showStartupError("SWP-JS-001","A JavaScript error occurred",(e.message||"Unknown script error")+" (line "+(e.lineno||"?")+")")});
   window.addEventListener("unhandledrejection",function(e){if(!window.__swiperBooted)return;const r=e.reason;showStartupError("SWP-ASYNC-001","An app task failed",r&&r.message?r.message:String(r||"Unknown rejected task"))});
@@ -869,40 +867,5 @@ body.owner-credit> :not(#ownerCreditScreen){display:none!important}
   observer.observe(document.body,{attributes:true,attributeFilter:["class"]});
   observer.observe(home,{attributes:true,attributeFilter:["hidden"]});
 })();
-</script>
-<script>
-/* Launch a snapshot of the already-loaded game in a fresh about:blank tab.
-   This does not request index.html again; relative game assets and connected
-   services may still need their normal network access. */
-function launchSwiperAboutBlank(button,status){
-  const tab=window.open("about:blank","_blank");
-  if(!tab){
-    if(status)status.textContent="Your browser blocked the new tab. Allow pop-ups for this site, then press the button again.";
-    return;
-  }
-  if(button){button.disabled=true;button.textContent="Opening Swiper…";}
-  try{
-    let source="<!doctype html>"+document.documentElement.outerHTML;
-    const base=new URL(".",location.href).href;
-    const safeBase=base.replace(/&/g,"&amp;").replace(/"/g,"&quot;");
-    if(/<head(?:\\s[^>]*)?>/i.test(source)){
-      if(!/<base(?:\\s|>)/i.test(source))source=source.replace(/<head((?:\\s[^>]*)?)>/i,"<head$1><base href=\""+safeBase+"\">");
-    }
-    tab.document.open();
-    tab.document.write(source);
-    tab.document.close();
-    if(button){button.disabled=false;button.textContent="Press to launch in about:blank";}
-  }catch(error){
-    const msg=String(error&&error.message||error);
-    tab.document.open();
-    tab.document.write("<!doctype html><meta charset=utf-8><title>Swiper launch failed</title><body style='margin:0;background:#10131b;color:#fff;font:16px system-ui;padding:28px'><h1>Swiper could not launch</h1><p>"+msg.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+"</p></body>");
-    tab.document.close();
-    if(button){button.disabled=false;button.textContent="Press to launch in about:blank";}
-  }
-}
-document.addEventListener("DOMContentLoaded",()=>{
-  const launch=document.getElementById("menuAboutBlank");
-  if(launch)launch.addEventListener("click",()=>launchSwiperAboutBlank(launch));
-});
 </script>
 </body></html>
